@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kohl's Store Navigator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f2f3; display: flex; justify-content: center; padding: 20px; min-height: 100vh; }
+  #app { background: #fff; border-radius: 16px; overflow: hidden; width: 100%; max-width: 920px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
+  #header { background: #8C1A3A; padding: 12px 18px; display: flex; align-items: center; gap: 10px; }
+  #header h1 { color: #fff; font-size: 16px; font-weight: 600; flex: 1; }
+  .badge { background: #C9914C; color: #fff; font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+  #search-bar { padding: 10px 16px; border-bottom: 1px solid #eee; display: flex; gap: 8px; align-items: center; background: #faf8f9; }
+  #search-bar input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 8px 12px; font-size: 14px; outline: none; }
+  #search-bar input:focus { border-color: #8C1A3A; }
+  #body { display: flex; height: 470px; }
+  #sidebar { width: 185px; border-right: 1px solid #eee; overflow-y: auto; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; }
+  .sidebar-title { font-size: 10px; color: #999; padding: 10px 14px 5px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .cat-item { display: flex; align-items: center; gap: 9px; padding: 9px 14px; cursor: pointer; font-size: 13px; color: #333; border-left: 3px solid transparent; }
+  .cat-item:hover { background: #faf8f9; }
+  .cat-item.active { border-left-color: #8C1A3A; background: #fdf5f7; color: #8C1A3A; font-weight: 600; }
+  .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  #map-area { flex: 1; position: relative; overflow: hidden; background: #f0ecee; }
+  #map-svg { width: 100%; height: 100%; }
+  .dept-zone { cursor: pointer; transition: opacity 0.2s; }
+  .dept-zone:hover { opacity: 0.82; }
+  .dept-zone.dimmed { opacity: 0.22; }
+  #route-path { fill: none; stroke: #8C1A3A; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1400; stroke-dashoffset: 1400; }
+  #route-path.animate { animation: drawRoute 0.85s ease-out forwards; }
+  @keyframes drawRoute { to { stroke-dashoffset: 0; } }
+  #info-panel { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; padding: 10px 16px; display: none; }
+  #info-panel.show { display: block; }
+  #info-name { font-size: 14px; font-weight: 600; color: #222; }
+  #info-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+  #info-sub { font-size: 12px; color: #888; }
+  #info-dist { font-size: 11px; background: #fdf5f7; color: #8C1A3A; border: 1px solid #e8aabb; padding: 2px 9px; border-radius: 20px; font-weight: 600; }
+  #info-items { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .item-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #f5f2f3; border: 1px solid #e0dada; color: #666; }
+  .item-tag.match { background: #fdf0f3; color: #8C1A3A; border-color: #e8aabb; font-weight: 600; }
+  #search-results { position: absolute; top: 0; left: 0; right: 0; background: #fff; border-bottom: 1px solid #eee; max-height: 200px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .result-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .result-row:hover { background: #faf8f9; }
+  .rzone { font-size: 11px; color: #999; margin-left: auto; background: #f5f2f3; padding: 2px 8px; border-radius: 10px; }
+  #you-here { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  #clear-btn { font-size: 14px; color: #aaa; cursor: pointer; padding: 2px 6px; }
+  .legend-section { padding: 10px 14px 8px; border-top: 1px solid #f0f0f0; }
+  .legend-title { font-size: 10px; color: #aaa; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+  .legend-row { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #888; margin-bottom: 4px; }
+  .legend-box { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+  .legend-line { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; background: #8C1A3A; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9914C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l4 4"/></svg>
+    <h1>Kohl's Store Navigator</h1>
+    <span class="badge">🗺️ Tap a section to navigate</span>
+  </div>
+
+  <div id="search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="search-input" placeholder="Search items, brands, departments…" autocomplete="off" />
+    <span id="clear-btn" style="display:none" aria-label="Clear">✕</span>
+  </div>
+
+  <div id="body">
+    <div id="sidebar">
+      <div class="sidebar-title">Departments</div>
+      <div id="cat-list"></div>
+      <div class="legend-section">
+        <div class="legend-title">Map Key</div>
+        <div class="legend-row"><div class="legend-box" style="background:#8C1A3A;border-radius:50%;"></div>You are here</div>
+        <div class="legend-row"><div class="legend-line"></div>Route to section</div>
+        <div class="legend-row"><div class="legend-box" style="background:#C9914C;border-radius:50%;width:10px;height:10px;"></div>Destination</div>
+        <div class="legend-row"><div class="legend-box" style="background:#EAF3DE;border:2px dashed #5C7A3E;"></div>Coming soon</div>
+      </div>
+    </div>
+
+    <div id="map-area">
+      <div id="search-results"></div>
+
+      <svg id="map-svg" viewBox="0 0 500 460" xmlns="http://www.w3.org/2000/svg">
+        <rect width="500" height="460" fill="#ede8ea"/>
+        <rect x="5" y="5" width="490" height="450" rx="8" fill="#fff" stroke="#ddd" stroke-width="1"/>
+        <rect x="200" y="4" width="100" height="10" fill="#fff"/>
+        <text x="250" y="13" text-anchor="middle" font-size="9" fill="#aaa" font-family="system-ui,sans-serif">↓ MAIN ENTRANCE</text>
+
+        <line x1="5"   y1="120" x2="495" y2="120" stroke="#e0dbe0" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="5"   y1="230" x2="495" y2="230" stroke="#e0dbe0" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="5"   y1="335" x2="495" y2="335" stroke="#e0dbe0" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="160" y1="14"  x2="160" y2="398" stroke="#e0dbe0" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="336" y1="14"  x2="336" y2="398" stroke="#e0dbe0" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <g id="zone-sephora" class="dept-zone" data-id="sephora">
+          <rect x="10" y="16" width="143" height="98" rx="6" fill="#F8D7E2" stroke="#C75A7C" stroke-width="2"/>
+          <text x="81" y="53" text-anchor="middle" font-size="13" font-weight="700" fill="#7A1F3C" font-family="system-ui,sans-serif">Sephora @ Kohl's</text>
+          <text x="81" y="70" text-anchor="middle" font-size="10" fill="#9A3050" font-family="system-ui,sans-serif">Beauty · Skincare · Fragrance</text>
+          <text x="81" y="103" text-anchor="middle" font-size="9" fill="#C75A7C" font-family="system-ui,sans-serif">📍 Section A</text>
+        </g>
+
+        <g id="zone-womens" class="dept-zone" data-id="womens">
+          <rect x="168" y="16" width="160" height="98" rx="6" fill="#EDE8F5" stroke="#6B4FA0" stroke-width="2"/>
+          <text x="248" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#3D2270" font-family="system-ui,sans-serif">Women's Apparel</text>
+          <text x="248" y="72" text-anchor="middle" font-size="10" fill="#5A3A90" font-family="system-ui,sans-serif">Dresses · Tops · Jeans · Coats</text>
+          <text x="248" y="103" text-anchor="middle" font-size="9" fill="#6B4FA0" font-family="system-ui,sans-serif">📍 Section B</text>
+        </g>
+
+        <g id="zone-bru" class="dept-zone" data-id="bru">
+          <rect x="344" y="16" width="146" height="98" rx="6" fill="#C8DFF0" stroke="#4A7FAD" stroke-width="2"/>
+          <text x="417" y="52" text-anchor="middle" font-size="13" font-weight="700" fill="#1B4D70" font-family="system-ui,sans-serif">Babies R Us</text>
+          <text x="417" y="68" text-anchor="middle" font-size="10" fill="#2A6090" font-family="system-ui,sans-serif">Strollers · Gear · Clothing</text>
+          <text x="417" y="84" text-anchor="middle" font-size="10" fill="#2A6090" font-family="system-ui,sans-serif">Toys · Nursery</text>
+          <text x="417" y="103" text-anchor="middle" font-size="9" fill="#4A7FAD" font-family="system-ui,sans-serif">📍 Section H</text>
+        </g>
+
+        <g id="zone-kids" class="dept-zone" data-id="kids">
+          <rect x="10" y="128" width="143" height="96" rx="6" fill="#FFF0D0" stroke="#C9914C" stroke-width="2"/>
+          <text x="81" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#6B3D00" font-family="system-ui,sans-serif">Kids &amp; Juniors</text>
+          <text x="81" y="182" text-anchor="middle" font-size="10" fill="#8B5000" font-family="system-ui,sans-serif">Clothing · Backpacks · Toys</text>
+          <text x="81" y="214" text-anchor="middle" font-size="9" fill="#C9914C" font-family="system-ui,sans-serif">📍 Section C</text>
+        </g>
+
+        <g id="zone-active" class="dept-zone" data-id="active">
+          <rect x="168" y="128" width="160" height="96" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="2"/>
+          <text x="248" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#173404" font-family="system-ui,sans-serif">Activewear</text>
+          <text x="248" y="182" text-anchor="middle" font-size="10" fill="#27500A" font-family="system-ui,sans-serif">Nike · Adidas · Under Armour</text>
+          <text x="248" y="198" text-anchor="middle" font-size="10" fill="#27500A" font-family="system-ui,sans-serif">Yoga · Running · Sports</text>
+          <text x="248" y="214" text-anchor="middle" font-size="9" fill="#3B6D11" font-family="system-ui,sans-serif">📍 Section D</text>
+        </g>
+
+        <g id="zone-shoes" class="dept-zone" data-id="shoes">
+          <rect x="344" y="128" width="146" height="96" rx="6" fill="#FAECE7" stroke="#D85A30" stroke-width="2"/>
+          <text x="417" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#4A1B0C" font-family="system-ui,sans-serif">Shoes</text>
+          <text x="417" y="182" text-anchor="middle" font-size="10" fill="#712B13" font-family="system-ui,sans-serif">Sneakers · Boots · Heels</text>
+          <text x="417" y="198" text-anchor="middle" font-size="10" fill="#712B13" font-family="system-ui,sans-serif">Sandals · Kids · Work</text>
+          <text x="417" y="214" text-anchor="middle" font-size="9" fill="#D85A30" font-family="system-ui,sans-serif">📍 Section E</text>
+        </g>
+
+        <g id="zone-home" class="dept-zone" data-id="home">
+          <rect x="10" y="238" width="220" height="90" rx="6" fill="#E6F1FB" stroke="#378ADD" stroke-width="2"/>
+          <text x="120" y="275" text-anchor="middle" font-size="13" font-weight="700" fill="#042C53" font-family="system-ui,sans-serif">Home &amp; Bedding</text>
+          <text x="120" y="291" text-anchor="middle" font-size="10" fill="#0C447C" font-family="system-ui,sans-serif">Kitchen · Décor · Bath · Storage</text>
+          <text x="120" y="318" text-anchor="middle" font-size="9" fill="#378ADD" font-family="system-ui,sans-serif">📍 Section F</text>
+        </g>
+
+        <g id="zone-mens" class="dept-zone" data-id="mens">
+          <rect x="244" y="238" width="146" height="90" rx="6" fill="#E0EEE8" stroke="#2D7D5A" stroke-width="2"/>
+          <text x="317" y="275" text-anchor="middle" font-size="13" font-weight="700" fill="#0F4530" font-family="system-ui,sans-serif">Men's Apparel</text>
+          <text x="317" y="291" text-anchor="middle" font-size="10" fill="#1A6040" font-family="system-ui,sans-serif">Shirts · Pants · Suits · Swim</text>
+          <text x="317" y="318" text-anchor="middle" font-size="9" fill="#2D7D5A" font-family="system-ui,sans-serif">📍 Section G</text>
+        </g>
+
+        <g id="zone-acc" class="dept-zone" data-id="acc">
+          <rect x="404" y="238" width="86" height="90" rx="6" fill="#FBEAF0" stroke="#D4537E" stroke-width="2"/>
+          <text x="447" y="273" text-anchor="middle" font-size="11" font-weight="700" fill="#4B1528" font-family="system-ui,sans-serif">Accessories</text>
+          <text x="447" y="289" text-anchor="middle" font-size="9" fill="#72243E" font-family="system-ui,sans-serif">Bags · Jewelry</text>
+          <text x="447" y="304" text-anchor="middle" font-size="9" fill="#72243E" font-family="system-ui,sans-serif">Hats · Scarves</text>
+          <text x="447" y="318" text-anchor="middle" font-size="8" fill="#D4537E" font-family="system-ui,sans-serif">📍 Section I</text>
+        </g>
+
+        <g id="zone-cafe" class="dept-zone" data-id="cafe">
+          <rect x="10" y="342" width="132" height="48" rx="6" fill="#EAF3DE" stroke="#5C7A3E" stroke-width="2" stroke-dasharray="6,3"/>
+          <text x="76" y="362" text-anchor="middle" font-size="12" font-weight="700" fill="#173404" font-family="system-ui,sans-serif">Kohl's Café ✦</text>
+          <text x="76" y="378" text-anchor="middle" font-size="9" fill="#27500A" font-family="system-ui,sans-serif">Coming Soon · Section J</text>
+        </g>
+
+        <g id="zone-checkout" class="dept-zone" data-id="checkout">
+          <rect x="156" y="342" width="334" height="48" rx="6" fill="#f5f2f3" stroke="#bbb" stroke-width="1.5"/>
+          <text x="323" y="362" text-anchor="middle" font-size="12" font-weight="600" fill="#444" font-family="system-ui,sans-serif">Checkout · Customer Service · Returns</text>
+          <text x="323" y="378" text-anchor="middle" font-size="10" fill="#888" font-family="system-ui,sans-serif">Kohl's Rewards · Scan &amp; Go · Gift Cards · App Pickup</text>
+        </g>
+
+        <rect x="10" y="400" width="480" height="42" rx="5" fill="none" stroke="#ddd" stroke-dasharray="5,5"/>
+        <text x="250" y="420" text-anchor="middle" font-size="9" fill="#bbb" font-family="system-ui,sans-serif">← Accessible Parking · Main Entrance →</text>
+        <text x="250" y="436" text-anchor="middle" font-size="8" fill="#ccc" font-family="system-ui,sans-serif">Curbside Pickup · Cart Return · EV Charging</text>
+
+        <!-- Route drawn here (below zones, above you-are-here) -->
+        <path id="route-path" d=""/>
+
+        <!-- Destination dot -->
+        <circle id="dest-dot" cx="0" cy="0" r="0" fill="#C9914C" stroke="#fff" stroke-width="2.5" opacity="0"/>
+
+        <!-- You are here (always on top) -->
+        <g id="you-here">
+          <circle cx="250" cy="360" r="11" fill="#8C1A3A"/>
+          <circle cx="250" cy="360" r="6"  fill="white"/>
+          <circle cx="250" cy="360" r="3"  fill="#8C1A3A"/>
+          <text x="266" y="364" font-size="9" fill="#8C1A3A" font-family="system-ui,sans-serif" font-weight="700">You are here</text>
+        </g>
+      </svg>
+
+      <div id="info-panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="flex:1">
+            <div id="info-name"></div>
+            <div id="info-row">
+              <span id="info-sub"></span>
+              <span id="info-dist"></span>
+            </div>
+          </div>
+          <button id="info-close" aria-label="Close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#bbb;padding:0 0 0 10px;">✕</button>
+        </div>
+        <div id="info-items"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const YOU_X = 250, YOU_Y = 360;
+const AY1=120, AY2=230, AY3=335, AX1=160, AX2=336;
+
+const depts = {
+  sephora:  { name:"Sephora @ Kohl's",    section:"A", color:"#C75A7C", cx:81,  cy:65,  dist:"~45 sec walk", route:[[AX1,YOU_Y],[AX1,AY2],[AX1,AY1],[81,AY1],[81,65]],   items:["foundation","concealer","mascara","lipstick","skincare","perfume","eyeshadow","blush","moisturizer","serum","bronzer","highlighter","eyeliner","setting spray","face wash","toner","sunscreen"] },
+  womens:   { name:"Women's Apparel",     section:"B", color:"#6B4FA0", cx:248, cy:65,  dist:"~40 sec walk", route:[[250,AY3],[250,AY1],[248,65]],                         items:["dress","blouse","jeans","leggings","cardigan","blazer","skirt","sweater","tops","jacket","coat","pajamas","bra","underwear","shapewear","romper","shorts"] },
+  bru:      { name:"Babies R Us",         section:"H", color:"#4A7FAD", cx:417, cy:65,  dist:"~50 sec walk", route:[[AX2,YOU_Y],[AX2,AY1],[417,AY1],[417,65]],            items:["stroller","car seat","diaper bag","baby monitor","crib","bassinet","baby clothes","bottles","pacifier","baby formula","breast pump","swaddle","high chair","baby toys","baby wipes","baby carrier","bouncer"] },
+  kids:     { name:"Kids & Juniors",      section:"C", color:"#C9914C", cx:81,  cy:176, dist:"~30 sec walk", route:[[AX1,YOU_Y],[AX1,AY2],[AX1,176],[81,176]],            items:["kids jeans","kids tops","toddler clothes","school uniform","backpack","lunchbox","socks","onesie","baby outfit","pajama set","graphic tee","kids jacket"] },
+  active:   { name:"Activewear",          section:"D", color:"#3B6D11", cx:248, cy:176, dist:"~25 sec walk", route:[[250,AY3],[250,AY2],[250,176],[248,176]],              items:["leggings","sports bra","running shoes","gym shorts","hoodie","yoga pants","water bottle","workout top","nike","adidas","sneakers","under armour","sweatpants"] },
+  shoes:    { name:"Shoes",               section:"E", color:"#D85A30", cx:417, cy:176, dist:"~35 sec walk", route:[[AX2,YOU_Y],[AX2,AY2],[AX2,176],[417,176]],           items:["sneakers","boots","sandals","heels","flats","kids shoes","running shoes","slippers","loafers","dress shoes","ankle boots","wedges","mules"] },
+  home:     { name:"Home & Bedding",      section:"F", color:"#378ADD", cx:120, cy:283, dist:"~20 sec walk", route:[[AX1,YOU_Y],[AX1,AY3],[AX1,283],[120,283]],           items:["bedding","pillow","sheets","towels","kitchen","cookware","curtains","rug","storage","lamp","candle","throw blanket","comforter","bath mat","coffee maker","air fryer"] },
+  mens:     { name:"Men's Apparel",       section:"G", color:"#2D7D5A", cx:317, cy:283, dist:"~15 sec walk", route:[[250,AY3],[317,AY3],[317,283]],                        items:["polo shirt","dress shirt","chinos","jeans","suit","tie","shorts","t-shirt","jacket","hoodie","underwear","socks","pajamas","swimwear"] },
+  acc:      { name:"Accessories",         section:"I", color:"#D4537E", cx:447, cy:283, dist:"~25 sec walk", route:[[AX2,YOU_Y],[AX2,AY3],[447,AY3],[447,283]],           items:["handbag","wallet","earrings","necklace","bracelet","watch","sunglasses","hat","belt","scarf","gloves","ring","hair accessories","tote bag"] },
+  cafe:     { name:"Kohl's Café",         section:"J", color:"#5C7A3E", cx:76,  cy:366, dist:"~10 sec walk", route:[[AX1,YOU_Y],[AX1,366],[76,366]],                      items:["coffee","latte","matcha","smoothie","cold brew","pastry","seasonal drink","snack","tea","espresso"] },
+  checkout: { name:"Checkout & Services", section:"K", color:"#888780", cx:323, cy:366, dist:"~5 sec walk",  route:[[323,366]],                                            items:["returns","gift card","kohl's cash","kohl's rewards","scan and go","customer service","pickup","layaway","price match"] },
+};
+
+const catList = document.getElementById('cat-list');
+Object.entries(depts).forEach(([id, dept]) => {
+  const el = document.createElement('div');
+  el.className = 'cat-item';
+  el.dataset.id = id;
+  el.innerHTML = `<div class="cat-dot" style="background:${dept.color}"></div>${dept.name}`;
+  el.addEventListener('click', () => activeId === id ? clearAll() : selectZone(id));
+  catList.appendChild(el);
+});
+
+let activeId = null;
+
+function buildPath(waypoints) {
+  const pts = [[YOU_X, YOU_Y], ...waypoints];
+  return 'M ' + pts.map(p => p[0] + ' ' + p[1]).join(' L ');
+}
+
+function selectZone(id) {
+  activeId = id;
+  const d = depts[id];
+  document.querySelectorAll('.dept-zone').forEach(z => {
+    z.classList.remove('dimmed');
+    if (z.dataset.id !== id) z.classList.add('dimmed');
+  });
+  document.querySelectorAll('.cat-item').forEach(c => c.classList.toggle('active', c.dataset.id === id));
+
+  const rp = document.getElementById('route-path');
+  rp.setAttribute('d', buildPath(d.route));
+  rp.classList.remove('animate');
+  void rp.getBoundingClientRect();
+  rp.classList.add('animate');
+
+  const dot = document.getElementById('dest-dot');
+  dot.setAttribute('cx', d.cx);
+  dot.setAttribute('cy', d.cy);
+  dot.setAttribute('r', 8);
+  dot.setAttribute('opacity', 1);
+
+  document.getElementById('info-name').textContent = d.name + ' — Section ' + d.section;
+  document.getElementById('info-sub').textContent = 'Route shown on map';
+  document.getElementById('info-dist').textContent = '🚶 ' + d.dist;
+  document.getElementById('info-items').innerHTML = d.items.map(i => `<span class="item-tag">${i}</span>`).join('');
+  document.getElementById('info-panel').classList.add('show');
+}
+
+function clearAll() {
+  activeId = null;
+  document.querySelectorAll('.dept-zone').forEach(z => z.classList.remove('dimmed'));
+  document.querySelectorAll('.cat-item').forEach(c => c.classList.remove('active'));
+  const rp = document.getElementById('route-path');
+  rp.setAttribute('d', '');
+  rp.classList.remove('animate');
+  const dot = document.getElementById('dest-dot');
+  dot.setAttribute('r', 0);
+  dot.setAttribute('opacity', 0);
+  document.getElementById('info-panel').classList.remove('show');
+}
+
+document.querySelectorAll('.dept-zone').forEach(z => {
+  z.addEventListener('click', () => activeId === z.dataset.id ? clearAll() : selectZone(z.dataset.id));
+});
+document.getElementById('info-close').addEventListener('click', clearAll);
+
+const input = document.getElementById('search-input');
+const results = document.getElementById('search-results');
+const clearBtn = document.getElementById('clear-btn');
+
+input.addEventListener('input', () => {
+  const q = input.value.trim().toLowerCase();
+  clearBtn.style.display = q ? 'inline' : 'none';
+  if (!q) { results.style.display = 'none'; return; }
+  const seen = new Set();
+  const matches = [];
+  Object.entries(depts).forEach(([id, dept]) => {
+    if (dept.name.toLowerCase().includes(q)) {
+      const key = id + dept.name;
+      if (!seen.has(key)) { seen.add(key); matches.push({ id, dept, item: dept.name }); }
+    }
+    dept.items.forEach(item => {
+      if (item.includes(q)) {
+        const key = id + item;
+        if (!seen.has(key)) { seen.add(key); matches.push({ id, dept, item }); }
+      }
+    });
+  });
+  if (!matches.length) {
+    results.innerHTML = `<div class="result-row" style="color:#aaa">No results — try another search</div>`;
+  } else {
+    results.innerHTML = matches.slice(0,8).map(m =>
+      `<div class="result-row" data-id="${m.id}">
+        <div class="cat-dot" style="background:${m.dept.color}"></div>
+        <span>${m.item}</span>
+        <span class="rzone">Section ${m.dept.section} · ${m.dept.dist}</span>
+      </div>`
+    ).join('');
+    results.querySelectorAll('.result-row[data-id]').forEach(r => {
+      r.addEventListener('click', () => {
+        const q2 = input.value.toLowerCase();
+        selectZone(r.dataset.id);
+        const d = depts[r.dataset.id];
+        document.getElementById('info-items').innerHTML = d.items.map(i =>
+          `<span class="item-tag ${i.includes(q2) ? 'match' : ''}">${i}</span>`
+        ).join('');
+        results.style.display = 'none';
+      });
+    });
+  }
+  results.style.display = 'block';
+});
+
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  clearBtn.style.display = 'none';
+  results.style.display = 'none';
+  clearAll();
+});
+</script>
+</body>
+</html>
